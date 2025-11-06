@@ -23,7 +23,7 @@
         }
         
         .container {
-            max-width: 800px;
+            max-width: 900px;
             width: 100%;
             display: flex;
             flex-direction: column;
@@ -52,7 +52,7 @@
         
         .game-board {
             flex: 1;
-            min-width: 300px;
+            min-width: 350px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -66,10 +66,31 @@
         .game-mode {
             display: flex;
             gap: 15px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
         
-        .mode-btn {
+        .difficulty {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+            width: 100%;
+            align-items: center;
+        }
+        
+        .difficulty-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+        
+        .difficulty-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .mode-btn, .difficulty-btn {
             padding: 10px 20px;
             font-size: 1rem;
             background: rgba(255, 255, 255, 0.2);
@@ -81,9 +102,24 @@
             font-weight: bold;
         }
         
-        .mode-btn.active {
+        .mode-btn.active, .difficulty-btn.active {
             background: #4da6ff;
             border-color: #4da6ff;
+        }
+        
+        .difficulty-btn.easy.active {
+            background: #4CAF50;
+            border-color: #4CAF50;
+        }
+        
+        .difficulty-btn.medium.active {
+            background: #FF9800;
+            border-color: #FF9800;
+        }
+        
+        .difficulty-btn.hard.active {
+            background: #F44336;
+            border-color: #F44336;
         }
         
         .status {
@@ -222,6 +258,16 @@
                     <button class="mode-btn active" id="modeTwoPlayers">Два игрока</button>
                     <button class="mode-btn" id="modeVsBot">Против бота</button>
                 </div>
+                
+                <div class="difficulty" id="difficultyContainer">
+                    <div class="difficulty-title">Уровень сложности:</div>
+                    <div class="difficulty-buttons">
+                        <button class="difficulty-btn easy active" id="difficultyEasy">Деградант</button>
+                        <button class="difficulty-btn medium" id="difficultyMedium">Нормис</button>
+                        <button class="difficulty-btn hard" id="difficultyHard">Ну сука точно умнее твоей мамаши</button>
+                    </div>
+                </div>
+                
                 <div class="status" id="status">Ход игрока: X</div>
                 <div class="board" id="board">
                     <div class="cell" data-index="0"></div>
@@ -258,11 +304,16 @@
             const resetButton = document.getElementById('reset');
             const modeTwoPlayersBtn = document.getElementById('modeTwoPlayers');
             const modeVsBotBtn = document.getElementById('modeVsBot');
+            const difficultyContainer = document.getElementById('difficultyContainer');
+            const difficultyEasyBtn = document.getElementById('difficultyEasy');
+            const difficultyMediumBtn = document.getElementById('difficultyMedium');
+            const difficultyHardBtn = document.getElementById('difficultyHard');
             
             let gameActive = true;
             let currentPlayer = "X";
             let gameState = ["", "", "", "", "", "", "", "", ""];
             let vsBotMode = false;
+            let botDifficulty = "easy"; // По умолчанию легкий уровень
             
             const winningConditions = [
                 [0, 1, 2],
@@ -280,6 +331,9 @@
             const currentPlayerTurn = () => `Ход игрока: ${currentPlayer}`;
             
             statusDisplay.innerHTML = currentPlayerTurn();
+            
+            // Сначала скрываем выбор уровня сложности
+            difficultyContainer.style.display = 'none';
             
             function handleCellClick(clickedCellEvent) {
                 const clickedCell = clickedCellEvent.target;
@@ -362,19 +416,44 @@
             function botMove() {
                 if (!gameActive || currentPlayer !== "O") return;
                 
-                // Простая логика бота: сначала проверяем возможность выигрыша, затем блокируем игрока
                 let availableCells = [];
                 gameState.forEach((cell, index) => {
                     if (cell === "") availableCells.push(index);
                 });
                 
+                let moveIndex;
+                
+                // Выбор хода в зависимости от уровня сложности
+                switch(botDifficulty) {
+                    case "easy":
+                        moveIndex = getEasyMove(availableCells);
+                        break;
+                    case "medium":
+                        moveIndex = getMediumMove(availableCells);
+                        break;
+                    case "hard":
+                        moveIndex = getHardMove(availableCells);
+                        break;
+                    default:
+                        moveIndex = getEasyMove(availableCells);
+                }
+                
+                makeBotMove(moveIndex);
+            }
+            
+            // Легкий уровень - случайные ходы
+            function getEasyMove(availableCells) {
+                return availableCells[Math.floor(Math.random() * availableCells.length)];
+            }
+            
+            // Средний уровень - пытается выиграть или блокировать игрока
+            function getMediumMove(availableCells) {
                 // Проверяем, может ли бот выиграть
                 for (let i = 0; i < availableCells.length; i++) {
                     let testGameState = [...gameState];
                     testGameState[availableCells[i]] = "O";
                     if (checkWinner(testGameState) === "O") {
-                        makeBotMove(availableCells[i]);
-                        return;
+                        return availableCells[i];
                     }
                 }
                 
@@ -383,14 +462,55 @@
                     let testGameState = [...gameState];
                     testGameState[availableCells[i]] = "X";
                     if (checkWinner(testGameState) === "X") {
-                        makeBotMove(availableCells[i]);
-                        return;
+                        return availableCells[i];
                     }
                 }
                 
                 // Иначе случайный ход
-                const randomIndex = Math.floor(Math.random() * availableCells.length);
-                makeBotMove(availableCells[randomIndex]);
+                return availableCells[Math.floor(Math.random() * availableCells.length)];
+            }
+            
+            // Сложный уровень - использует минимакс алгоритм для оптимальной игры
+            function getHardMove(availableCells) {
+                // Сначала проверяем, может ли бот выиграть
+                for (let i = 0; i < availableCells.length; i++) {
+                    let testGameState = [...gameState];
+                    testGameState[availableCells[i]] = "O";
+                    if (checkWinner(testGameState) === "O") {
+                        return availableCells[i];
+                    }
+                }
+                
+                // Затем проверяем, нужно ли блокировать игрока
+                for (let i = 0; i < availableCells.length; i++) {
+                    let testGameState = [...gameState];
+                    testGameState[availableCells[i]] = "X";
+                    if (checkWinner(testGameState) === "X") {
+                        return availableCells[i];
+                    }
+                }
+                
+                // Стратегические ходы - центр и углы
+                const center = 4;
+                if (availableCells.includes(center)) {
+                    return center;
+                }
+                
+                const corners = [0, 2, 6, 8];
+                const availableCorners = corners.filter(corner => availableCells.includes(corner));
+                if (availableCorners.length > 0) {
+                    return availableCorners[Math.floor(Math.random() * availableCorners.length)];
+                }
+                
+                // Оставшиеся ходы (стороны)
+                const sides = [1, 3, 5, 7];
+                const availableSides = sides.filter(side => availableCells.includes(side));
+                if (availableSides.length > 0) {
+                    return availableSides[Math.floor(Math.random() * availableSides.length)];
+                }
+                
+                // Если ничего не найдено, случайный ход
+                return availableCells[Math.floor(Math.random() * availableCells.length)];
             }
             
             function makeBotMove(index) {
@@ -412,6 +532,9 @@
             function setGameMode(mode) {
                 vsBotMode = mode === 'bot';
                 
+                // Показываем или скрываем выбор уровня сложности
+                difficultyContainer.style.display = vsBotMode ? 'flex' : 'none';
+                
                 // Обновляем активные кнопки
                 modeTwoPlayersBtn.classList.toggle('active', !vsBotMode);
                 modeVsBotBtn.classList.toggle('active', vsBotMode);
@@ -420,10 +543,27 @@
                 handleRestartGame();
             }
             
+            function setBotDifficulty(difficulty) {
+                botDifficulty = difficulty;
+                
+                // Обновляем активные кнопки
+                difficultyEasyBtn.classList.toggle('active', difficulty === 'easy');
+                difficultyMediumBtn.classList.toggle('active', difficulty === 'medium');
+                difficultyHardBtn.classList.toggle('active', difficulty === 'hard');
+                
+                // Если игра против бота активна, перезапускаем игру
+                if (vsBotMode) {
+                    handleRestartGame();
+                }
+            }
+            
             cells.forEach(cell => cell.addEventListener('click', handleCellClick));
             resetButton.addEventListener('click', handleRestartGame);
             modeTwoPlayersBtn.addEventListener('click', () => setGameMode('twoPlayers'));
             modeVsBotBtn.addEventListener('click', () => setGameMode('bot'));
+            difficultyEasyBtn.addEventListener('click', () => setBotDifficulty('easy'));
+            difficultyMediumBtn.addEventListener('click', () => setBotDifficulty('medium'));
+            difficultyHardBtn.addEventListener('click', () => setBotDifficulty('hard'));
         });
     </script>
 </body>
